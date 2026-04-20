@@ -5,17 +5,17 @@
 // ---------------------------------------------------------------------------
 // Hardware pin configuration — adjust after physical install
 // ---------------------------------------------------------------------------
-#define SERVO_PIN       13
-#define LEFT_EYE_PIN    25
-#define RIGHT_EYE_PIN   26
-#define NUM_LEDS         7
+#define SERVO_PIN       17
+#define LED_PIN         16
+#define NUM_LEDS         7   // per eye
+#define TOTAL_LEDS      14   // both eyes in one chain (left=0–6, right=7–13)
 
 // ---------------------------------------------------------------------------
 // Servo positions (degrees) — adjust after physical install
 // ---------------------------------------------------------------------------
 #define SERVO_LEFT      55
-#define SERVO_CENTER    90
-#define SERVO_RIGHT    125
+#define SERVO_CENTER   110
+#define SERVO_RIGHT    145
 
 // ---------------------------------------------------------------------------
 // Timing constants
@@ -36,19 +36,26 @@
 #define GLITCH_ON_MS           40UL  // each flicker-on gap
 
 #define ERROR_BLACKOUT_MS     500UL  // brief off before red
-#define ERROR_RED_MS         5000UL  // time spent red
+#define ERROR_RED_MS         8000UL  // time spent red
 #define ERROR_FADEOUT_MS      200UL  // pause after red before reboot
 
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame
-#define REBOOT_CHASE_CYCLES     3    // how many full rotations
+#define REBOOT_CHASE_CYCLES     6    // how many full rotations
+
+#define BRIGHTNESS_NORMAL     200
+#define BRIGHTNESS_ERROR      255
 
 // ---------------------------------------------------------------------------
-// LED arrays and servo
+// LED array and servo
+// Single chain: indices 0–6 = left eye, indices 7–13 = right eye
 // ---------------------------------------------------------------------------
-CRGB leftEye[NUM_LEDS];
-CRGB rightEye[NUM_LEDS];
+CRGB leds[TOTAL_LEDS];
 Servo eyeServo;
+
+// Convenience pointers into the chain
+CRGB * const leftEye  = leds;
+CRGB * const rightEye = leds + NUM_LEDS;
 
 // ---------------------------------------------------------------------------
 // State machine
@@ -135,6 +142,7 @@ void scheduleNextLook() {
 // ---------------------------------------------------------------------------
 void enterNormal() {
     currentState = STATE_NORMAL;
+    FastLED.setBrightness(BRIGHTNESS_NORMAL);
     eyeServo.write(SERVO_CENTER);
     setEyes(CRGB::White);
     lookingAround = false;
@@ -259,6 +267,7 @@ void updateError() {
             break;
         case 1:
             if (now - errorStepMs >= ERROR_BLACKOUT_MS) {
+                FastLED.setBrightness(BRIGHTNESS_ERROR);
                 setEyes(CRGB::Red);
                 errorStep   = 2;
                 errorStepMs = now;
@@ -301,8 +310,7 @@ void updateReboot() {
             break;
         case 2: {   // chase frame
             if (now - rebootStepMs >= REBOOT_CHASE_STEP_MS) {
-                fill_solid(leftEye,  NUM_LEDS, CRGB::Black);
-                fill_solid(rightEye, NUM_LEDS, CRGB::Black);
+                fill_solid(leds, TOTAL_LEDS, CRGB::Black);
                 leftEye[chasePos]  = CRGB::White;
                 rightEye[chasePos] = CRGB::White;
                 FastLED.show();
@@ -335,8 +343,7 @@ void setup() {
     Serial.begin(115200);
     Serial.println("Springtrap eye controller starting...");
 
-    FastLED.addLeds<WS2812B, LEFT_EYE_PIN,  GRB>(leftEye,  NUM_LEDS);
-    FastLED.addLeds<WS2812B, RIGHT_EYE_PIN, GRB>(rightEye, NUM_LEDS);
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, TOTAL_LEDS);
     FastLED.setBrightness(200);
 
     eyeServo.attach(SERVO_PIN);
