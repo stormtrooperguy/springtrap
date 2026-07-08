@@ -6,6 +6,7 @@
 // Hardware pin configuration — adjust after physical install
 // ---------------------------------------------------------------------------
 #define SERVO_PIN       17
+#define MOUTH_PIN        4
 #define LED_PIN         16
 #define NUM_LEDS         7   // per eye
 #define TOTAL_LEDS      14   // both eyes in one chain (left=0–6, right=7–13)
@@ -16,6 +17,9 @@
 #define SERVO_LEFT      55
 #define SERVO_CENTER   110
 #define SERVO_RIGHT    145
+
+#define MOUTH_CLOSED     90
+#define MOUTH_OPEN      150
 
 // ---------------------------------------------------------------------------
 // Timing constants
@@ -39,6 +43,9 @@
 #define ERROR_RED_MS         8000UL  // time spent red
 #define ERROR_FADEOUT_MS      200UL  // pause after red before reboot
 
+#define MOUTH_FLAP_MIN_MS     120UL  // fastest mouth open/close interval during error
+#define MOUTH_FLAP_MAX_MS     220UL  // slowest mouth open/close interval during error
+
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame
 #define REBOOT_CHASE_CYCLES     6    // how many full rotations
@@ -52,6 +59,7 @@
 // ---------------------------------------------------------------------------
 CRGB leds[TOTAL_LEDS];
 Servo eyeServo;
+Servo mouthServo;
 
 // Convenience pointers into the chain
 CRGB * const leftEye  = leds;
@@ -96,6 +104,8 @@ bool glitchRight    = false;
 // ---------------------------------------------------------------------------
 int  errorStep      = 0;
 unsigned long errorStepMs = 0;
+bool mouthOpen        = false;
+unsigned long nextMouthFlapMs = 0;
 
 // ---------------------------------------------------------------------------
 // Reboot sub-state
@@ -170,6 +180,8 @@ void enterError() {
     errorStepMs   = millis();
     lookingAround = false;
     eyeServo.write(SERVO_CENTER);
+    mouthServo.write(MOUTH_CLOSED);
+    mouthOpen     = false;
 }
 
 void enterReboot() {
@@ -269,15 +281,24 @@ void updateError() {
             if (now - errorStepMs >= ERROR_BLACKOUT_MS) {
                 FastLED.setBrightness(BRIGHTNESS_ERROR);
                 setEyes(CRGB::Red);
-                errorStep   = 2;
-                errorStepMs = now;
+                errorStep      = 2;
+                errorStepMs    = now;
+                nextMouthFlapMs = now + randRange(MOUTH_FLAP_MIN_MS, MOUTH_FLAP_MAX_MS);
             }
             break;
         case 2:
             if (now - errorStepMs >= ERROR_RED_MS) {
                 setEyes(CRGB::Black);
+                mouthServo.write(MOUTH_CLOSED);
+                mouthOpen   = false;
                 errorStep   = 3;
                 errorStepMs = now;
+                break;
+            }
+            if (now >= nextMouthFlapMs) {
+                mouthOpen = !mouthOpen;
+                mouthServo.write(mouthOpen ? MOUTH_OPEN : MOUTH_CLOSED);
+                nextMouthFlapMs = now + randRange(MOUTH_FLAP_MIN_MS, MOUTH_FLAP_MAX_MS);
             }
             break;
         case 3:
@@ -347,6 +368,8 @@ void setup() {
     FastLED.setBrightness(200);
 
     eyeServo.attach(SERVO_PIN);
+    mouthServo.attach(MOUTH_PIN);
+    mouthServo.write(MOUTH_CLOSED);
 
     randomSeed(analogRead(0));
 

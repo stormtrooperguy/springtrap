@@ -1,6 +1,6 @@
 # Springtrap Eye Controller
 
-ESP32 firmware for controlling the animated eyes of a Halloween animatronic. Both eyes share a single chain of 14 WS2812B LEDs (7 per eye). A single servo moves both eyes left and right.
+ESP32 firmware for controlling the animated eyes and mouth of a Halloween animatronic. Both eyes share a single chain of 14 WS2812B LEDs (7 per eye). One servo moves both eyes left and right, and a second servo opens and closes the mouth.
 
 ## Hardware
 
@@ -9,15 +9,17 @@ ESP32 firmware for controlling the animated eyes of a Halloween animatronic. Bot
 | Microcontroller | ESP32 (DevKit) |
 | Eye LEDs | 2× ring of 7 WS2812B (NeoPixel) LEDs, wired as one chain |
 | Eye movement | 1× servo motor |
+| Mouth movement | 1× servo motor |
 
 ## Wiring
 
 | Signal | ESP32 GPIO | Notes |
 |---|---|---|
-| Servo | 17 | Signal wire only |
+| Eye servo | 17 | Signal wire only |
+| Mouth servo | 4 | Signal wire only |
 | LED chain data | 16 | Via 300–500 Ω series resistor |
 
-The LED chain runs left eye first (indices 0–6), then right eye (indices 7–13). The servo and LED rings are powered externally (5V). All grounds must be common — external supply ground and ESP32 GND tied together.
+The LED chain runs left eye first (indices 0–6), then right eye (indices 7–13). The servos and LED rings are powered externally (5V). All grounds must be common — external supply ground and ESP32 GND tied together.
 
 ## Behavior
 
@@ -28,7 +30,7 @@ Eyes are lit white. Every 8–15 seconds the eyes look left, then right, then re
 Every 2–3 seconds, one or both eyes briefly flicker on and off 2–4 times, then return to white. Simulates a malfunctioning animatronic.
 
 ### Error mode
-Triggered randomly every 3–5 minutes. Eyes go dark briefly, then illuminate red at full brightness for 8 seconds, then go dark. Always followed immediately by reboot mode.
+Triggered randomly every 3–5 minutes. Eyes go dark briefly, then illuminate red at full brightness for 8 seconds — during which the mouth flaps open and closed at a random, irregular interval — then eyes and mouth go still and dark. Always followed immediately by reboot mode.
 
 ### Reboot mode
 Eyes are dark for ~800 ms, then a single white pixel chases around each ring for 6 full rotations, then the eyes come back on steady white at normal brightness and return to normal mode.
@@ -40,6 +42,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 ### Pin assignments
 ```cpp
 #define SERVO_PIN       17
+#define MOUTH_PIN        4
 #define LED_PIN         16
 ```
 
@@ -48,6 +51,9 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define SERVO_LEFT      55
 #define SERVO_CENTER   110
 #define SERVO_RIGHT    145
+
+#define MOUTH_CLOSED     90
+#define MOUTH_OPEN      150
 ```
 
 ### Brightness
@@ -64,6 +70,8 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define ERROR_MAX_MS   (5UL * 60 * 1000)   // 5 minutes
 #define LOOK_MIN_MS         8000UL   // minimum time between look-arounds
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
+#define MOUTH_FLAP_MIN_MS    120UL   // fastest mouth open/close interval during error
+#define MOUTH_FLAP_MAX_MS    220UL   // slowest mouth open/close interval during error
 ```
 
 ## Building and Flashing
