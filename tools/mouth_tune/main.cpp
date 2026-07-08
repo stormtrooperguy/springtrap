@@ -8,6 +8,13 @@
 
 #define MOUTH_PIN 4
 
+// Minimum time to hold the closed position before reopening. The servo PWM
+// signal only updates at ~50Hz, so a write() immediately followed by
+// another write() on the next loop() iteration can get overwritten before
+// the hardware ever outputs that pulse — the mouth would never visibly
+// close. This isn't a "look" tuning knob, just a hardware floor.
+#define MOUTH_CLOSE_HOLD_MS 40UL
+
 Servo mouthServo;
 
 int mouthOpenAngle   = 150;
@@ -17,7 +24,7 @@ unsigned long openHoldMs = 150;   // how long the mouth stays open before snappi
 int lastAngle = 90;
 bool chomping = false;
 bool mouthOpen = false;
-unsigned long mouthOpenUntilMs = 0;
+unsigned long mouthPhaseUntilMs = 0;
 
 void printHelp() {
     Serial.println("Mouth servo tuner");
@@ -60,6 +67,7 @@ void handleLine(String line) {
     if (line == "chomp") {
         chomping  = !chomping;
         mouthOpen = false;
+        mouthPhaseUntilMs = millis();
         if (chomping) {
             Serial.println("Chomp test started (type 'chomp' again to stop)");
         } else {
@@ -75,6 +83,7 @@ void handleLine(String line) {
             Serial.printf("Open-hold set to %lums\n", openHoldMs);
             chomping  = true;
             mouthOpen = false;
+            mouthPhaseUntilMs = millis();
         }
         return;
     }
@@ -102,13 +111,16 @@ void loop() {
 
     if (chomping) {
         unsigned long now = millis();
-        if (!mouthOpen) {
-            mouthServo.write(mouthOpenAngle);
-            mouthOpen        = true;
-            mouthOpenUntilMs = now + openHoldMs;
-        } else if (now >= mouthOpenUntilMs) {
-            mouthServo.write(mouthClosedAngle);
-            mouthOpen = false;
+        if (now >= mouthPhaseUntilMs) {
+            if (mouthOpen) {
+                mouthServo.write(mouthClosedAngle);
+                mouthOpen         = false;
+                mouthPhaseUntilMs = now + MOUTH_CLOSE_HOLD_MS;
+            } else {
+                mouthServo.write(mouthOpenAngle);
+                mouthOpen         = true;
+                mouthPhaseUntilMs = now + openHoldMs;
+            }
         }
     }
 }

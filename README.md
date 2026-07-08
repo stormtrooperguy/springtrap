@@ -71,6 +71,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define LOOK_MIN_MS         8000UL   // minimum time between look-arounds
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
 #define MOUTH_OPEN_HOLD_MS   150UL   // how long the mouth stays open before snapping shut
+#define MOUTH_CLOSE_HOLD_MS   40UL   // minimum time to hold closed before reopening (hardware floor, not a tuning knob)
 ```
 
 ## Building and Flashing
@@ -115,7 +116,11 @@ Serial commands:
 
 Movement is always `Servo::write()` at full speed — open and close are
 instantaneous snaps. The only tunable timing is how long the jaw stays open
-before snapping shut again.
+before snapping shut again. Closed is also held briefly (`MOUTH_CLOSE_HOLD_MS`,
+fixed at 40ms) before reopening — the servo's PWM signal only updates at
+~50Hz, so without that minimum hold the closed command gets overwritten by
+the next "open" before the hardware ever outputs it, and the mouth never
+visibly closes.
 
 Once you're happy with the feel, copy the printed values into the
 `MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_OPEN_HOLD_MS` `#define`s in

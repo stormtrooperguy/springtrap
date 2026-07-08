@@ -45,6 +45,13 @@
 
 #define MOUTH_OPEN_HOLD_MS     150UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
+// Minimum time to hold the closed position before reopening. The servo PWM
+// signal only updates at ~50Hz, so a write() immediately followed by
+// another write() on the next loop() iteration can get overwritten before
+// the hardware ever outputs that pulse — the mouth would never visibly
+// close. This isn't a "look" tuning knob, just a hardware floor.
+#define MOUTH_CLOSE_HOLD_MS     40UL
+
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame
 #define REBOOT_CHASE_CYCLES     6    // how many full rotations
@@ -104,7 +111,7 @@ bool glitchRight    = false;
 int  errorStep      = 0;
 unsigned long errorStepMs = 0;
 bool mouthOpen        = false;   // chomp state: open-and-holding vs snapped shut
-unsigned long mouthOpenUntilMs = 0;
+unsigned long mouthPhaseUntilMs = 0;
 
 // ---------------------------------------------------------------------------
 // Reboot sub-state
@@ -282,7 +289,8 @@ void updateError() {
                 setEyes(CRGB::Red);
                 errorStep   = 2;
                 errorStepMs = now;
-                mouthOpen   = false;   // triggers an immediate chomp on the next iteration
+                mouthOpen        = false;
+                mouthPhaseUntilMs = now;   // triggers an immediate chomp on the next iteration
             }
             break;
         case 2:
@@ -294,14 +302,18 @@ void updateError() {
                 errorStepMs = now;
                 break;
             }
-            // Chomp: snap open as fast as possible, hold, snap shut, repeat.
-            if (!mouthOpen) {
-                mouthServo.write(MOUTH_OPEN);
-                mouthOpen        = true;
-                mouthOpenUntilMs = now + MOUTH_OPEN_HOLD_MS;
-            } else if (now >= mouthOpenUntilMs) {
-                mouthServo.write(MOUTH_CLOSED);
-                mouthOpen = false;
+            // Chomp: snap open as fast as possible, hold, snap shut, hold
+            // briefly (see MOUTH_CLOSE_HOLD_MS), repeat.
+            if (now >= mouthPhaseUntilMs) {
+                if (mouthOpen) {
+                    mouthServo.write(MOUTH_CLOSED);
+                    mouthOpen         = false;
+                    mouthPhaseUntilMs = now + MOUTH_CLOSE_HOLD_MS;
+                } else {
+                    mouthServo.write(MOUTH_OPEN);
+                    mouthOpen         = true;
+                    mouthPhaseUntilMs = now + MOUTH_OPEN_HOLD_MS;
+                }
             }
             break;
         case 3:
