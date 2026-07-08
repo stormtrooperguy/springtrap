@@ -9,28 +9,45 @@
 
 #define MOUTH_PIN 4
 
+// Default pulse width range used by Servo::attach(pin) with no explicit
+// min/max — used here so writeMicroseconds() can move in fractional
+// degrees instead of the whole-degree steps Servo::write(int) is limited
+// to, which is what made slow movement look stair-stepped rather than
+// smooth.
+#define MOUTH_PULSE_MIN_US  544
+#define MOUTH_PULSE_MAX_US 2400
+
+#define UPDATE_MS 20UL   // ~50Hz — matches the servo's own PWM refresh rate
+
 Servo mouthServo;
 
 int mouthOpenAngle   = 150;
 int mouthClosedAngle = 90;
 unsigned long flapMinMs = 120;
 unsigned long flapMaxMs = 220;
-unsigned long stepDelayMs = 15;   // ms per 1-degree step; lower = faster
+float degPerSec = 300.0f;   // movement speed; lower = slower/smoother
 
 int lastAngle = 90;
 bool flapping = false;
 bool flapOpen = false;
 unsigned long nextFlapMs = 0;
 
-// Current position glides toward targetAngle at stepDelayMs per degree,
-// instead of Servo::write() snapping there instantly.
-int servoAngle   = 90;
-int targetAngle  = 90;
+// Current position glides toward targetAngle at degPerSec, in fractional
+// degrees, instead of Servo::write() snapping there instantly.
+float servoAngle  = 90;
+float targetAngle = 90;
 unsigned long lastStepMs = 0;
 
 unsigned long randRange(unsigned long lo, unsigned long hi) {
     if (hi <= lo) return lo;
     return lo + (unsigned long)random((long)(hi - lo));
+}
+
+void writeMouthAngle(float angleDeg) {
+    angleDeg = constrain(angleDeg, 0.0f, 180.0f);
+    float us = MOUTH_PULSE_MIN_US +
+        (angleDeg / 180.0f) * (MOUTH_PULSE_MAX_US - MOUTH_PULSE_MIN_US);
+    mouthServo.writeMicroseconds((int)(us + 0.5f));
 }
 
 void printHelp() {
@@ -40,7 +57,7 @@ void printHelp() {
     Serial.println("  closed             save last angle as MOUTH_CLOSED and move there");
     Serial.println("  flap               toggle continuous flap test (open<->closed)");
     Serial.println("  flap <min> <max>   set flap interval bounds (ms) and start test");
-    Serial.println("  speed <ms>         set ms per degree of movement (lower = faster)");
+    Serial.println("  speed <deg/sec>    set movement speed in degrees per second");
     Serial.println("  print              print #define lines to paste into main.cpp");
     Serial.println("  help               show this message");
 }
@@ -51,7 +68,7 @@ void printValues() {
     Serial.printf("#define MOUTH_CLOSED          %d\n", mouthClosedAngle);
     Serial.printf("#define MOUTH_FLAP_MIN_MS     %luUL\n", flapMinMs);
     Serial.printf("#define MOUTH_FLAP_MAX_MS     %luUL\n", flapMaxMs);
-    Serial.printf("#define MOUTH_STEP_DELAY_MS   %luUL\n", stepDelayMs);
+    Serial.printf("#define MOUTH_DEG_PER_SEC     %.1ff\n", degPerSec);
     Serial.println("---");
 }
 
@@ -100,10 +117,10 @@ void handleLine(String line) {
         return;
     }
     if (line.startsWith("speed ")) {
-        long ms = line.substring(6).toInt();
-        if (ms > 0) {
-            stepDelayMs = ms;
-            Serial.printf("Speed set to %lums per degree\n", stepDelayMs);
+        float v = line.substring(6).toFloat();
+        if (v > 0) {
+            degPerSec = v;
+            Serial.printf("Speed set to %.1f deg/sec\n", degPerSec);
         }
         return;
     }
@@ -119,9 +136,9 @@ void handleLine(String line) {
 void setup() {
     Serial.begin(115200);
     mouthServo.attach(MOUTH_PIN);
-    mouthServo.write(mouthClosedAngle);
     servoAngle  = mouthClosedAngle;
     targetAngle = mouthClosedAngle;
+    writeMouthAngle(servoAngle);
     randomSeed(analogRead(0));
     printHelp();
 }
@@ -138,9 +155,14 @@ void loop() {
         nextFlapMs  = millis() + randRange(flapMinMs, flapMaxMs);
     }
 
-    if (servoAngle != targetAngle && millis() - lastStepMs >= stepDelayMs) {
-        servoAngle += (servoAngle < targetAngle) ? 1 : -1;
-        mouthServo.write(servoAngle);
-        lastStepMs = millis();
+    unsigned long now = millis();
+    if (now - lastStepMs >= UPDATE_MS) {
+        lastStepMs = now;
+        if (servoAngle != targetAngle) {
+            float step  = degPerSec * (UPDATE_MS / 1000.0f);
+            float delta = targetAngle - servoAngle;
+            servoAngle += (fabs(delta) <= step) ? delta : (delta > 0 ? step : -step);
+            writeMouthAngle(servoAngle);
+        }
     }
 }

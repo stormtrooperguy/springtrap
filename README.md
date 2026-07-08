@@ -56,7 +56,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define MOUTH_OPEN      150
 ```
 
-The mouth glides between positions rather than snapping — see `MOUTH_STEP_DELAY_MS` below.
+The mouth glides between positions in fractional degrees via `writeMicroseconds()` rather than snapping there with `Servo::write()` — see `MOUTH_DEG_PER_SEC` below.
 
 ### Brightness
 ```cpp
@@ -74,7 +74,7 @@ The mouth glides between positions rather than snapping — see `MOUTH_STEP_DELA
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
 #define MOUTH_FLAP_MIN_MS    120UL   // fastest mouth open/close interval during error
 #define MOUTH_FLAP_MAX_MS    220UL   // slowest mouth open/close interval during error
-#define MOUTH_STEP_DELAY_MS   15UL   // ms per degree of mouth movement (lower = faster)
+#define MOUTH_DEG_PER_SEC   300.0f   // mouth movement speed, degrees per second
 ```
 
 ## Building and Flashing
@@ -115,11 +115,16 @@ Serial commands:
 | `closed` | Save the last angle as `MOUTH_CLOSED` and move there |
 | `flap` | Toggle a continuous open/closed flap loop, to preview the error-mode look |
 | `flap <min> <max>` | Set the flap interval bounds (ms) and start the loop |
-| `speed <ms>` | Set ms per degree of movement — lower is faster, higher is slower/smoother |
+| `speed <deg/sec>` | Set movement speed in degrees per second — lower is slower |
 | `print` | Print `#define` lines ready to paste into `src/main.cpp` |
+
+Both the tuner and the real firmware move the servo via `writeMicroseconds()`
+in fractional degrees, updated at a fixed ~50Hz (matching the servo's own
+PWM refresh rate), rather than `Servo::write()`'s whole-degree steps — this
+is what makes slow speeds glide instead of stair-step.
 
 Once you're happy with the feel, copy the printed values into the
 `MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_FLAP_MIN_MS` / `MOUTH_FLAP_MAX_MS` /
-`MOUTH_STEP_DELAY_MS` `#define`s in [`src/main.cpp`](src/main.cpp), then
+`MOUTH_DEG_PER_SEC` `#define`s in [`src/main.cpp`](src/main.cpp), then
 reflash the main firmware with `pio run -t upload` (no `-e` needed —
 `esp32dev` is the default environment).

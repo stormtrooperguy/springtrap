@@ -45,7 +45,15 @@
 
 #define MOUTH_FLAP_MIN_MS     120UL  // fastest mouth open/close interval during error
 #define MOUTH_FLAP_MAX_MS     220UL  // slowest mouth open/close interval during error
-#define MOUTH_STEP_DELAY_MS    15UL  // ms per degree of mouth movement — tune via tools/mouth_tune
+
+#define MOUTH_UPDATE_MS         20UL  // ~50Hz — matches the servo's own PWM refresh rate
+#define MOUTH_DEG_PER_SEC     300.0f  // mouth movement speed — tune via tools/mouth_tune
+
+// Default pulse width range used by Servo::attach(pin) with no explicit
+// min/max — used here so writeMicroseconds() can move in fractional
+// degrees instead of the whole-degree steps Servo::write(int) is limited to.
+#define MOUTH_PULSE_MIN_US     544
+#define MOUTH_PULSE_MAX_US    2400
 
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame
@@ -108,10 +116,10 @@ unsigned long errorStepMs = 0;
 bool mouthOpen        = false;
 unsigned long nextMouthFlapMs = 0;
 
-// Mouth glides toward mouthServoTarget at MOUTH_STEP_DELAY_MS per degree,
-// instead of snapping there instantly.
-int  mouthServoAngle   = MOUTH_CLOSED;
-int  mouthServoTarget  = MOUTH_CLOSED;
+// Mouth glides toward mouthServoTarget at MOUTH_DEG_PER_SEC, in fractional
+// degrees, instead of snapping there instantly.
+float mouthServoAngle   = MOUTH_CLOSED;
+float mouthServoTarget  = MOUTH_CLOSED;
 unsigned long mouthServoStepMs = 0;
 
 // ---------------------------------------------------------------------------
@@ -139,14 +147,24 @@ void setEyes(CRGB color) {
     showEyes(color, color);
 }
 
+void writeMouthAngle(float angleDeg) {
+    angleDeg = constrain(angleDeg, 0.0f, 180.0f);
+    float us = MOUTH_PULSE_MIN_US +
+        (angleDeg / 180.0f) * (MOUTH_PULSE_MAX_US - MOUTH_PULSE_MIN_US);
+    mouthServo.writeMicroseconds((int)(us + 0.5f));
+}
+
 void updateMouthServo() {
-    if (mouthServoAngle == mouthServoTarget) return;
     unsigned long now = millis();
-    if (now - mouthServoStepMs >= MOUTH_STEP_DELAY_MS) {
-        mouthServoAngle += (mouthServoAngle < mouthServoTarget) ? 1 : -1;
-        mouthServo.write(mouthServoAngle);
-        mouthServoStepMs = now;
-    }
+    if (now - mouthServoStepMs < MOUTH_UPDATE_MS) return;
+    mouthServoStepMs = now;
+
+    if (mouthServoAngle == mouthServoTarget) return;
+
+    float step  = MOUTH_DEG_PER_SEC * (MOUTH_UPDATE_MS / 1000.0f);
+    float delta = mouthServoTarget - mouthServoAngle;
+    mouthServoAngle += (fabs(delta) <= step) ? delta : (delta > 0 ? step : -step);
+    writeMouthAngle(mouthServoAngle);
 }
 
 // ---------------------------------------------------------------------------
@@ -386,9 +404,9 @@ void setup() {
 
     eyeServo.attach(SERVO_PIN);
     mouthServo.attach(MOUTH_PIN);
-    mouthServo.write(MOUTH_CLOSED);
     mouthServoAngle  = MOUTH_CLOSED;
     mouthServoTarget = MOUTH_CLOSED;
+    writeMouthAngle(mouthServoAngle);
 
     randomSeed(analogRead(0));
 
