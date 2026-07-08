@@ -43,17 +43,7 @@
 #define ERROR_RED_MS         8000UL  // time spent red
 #define ERROR_FADEOUT_MS      200UL  // pause after red before reboot
 
-#define MOUTH_FLAP_MIN_MS     120UL  // fastest mouth open/close interval during error
-#define MOUTH_FLAP_MAX_MS     220UL  // slowest mouth open/close interval during error
-
-#define MOUTH_UPDATE_MS         20UL  // ~50Hz — matches the servo's own PWM refresh rate
-#define MOUTH_DEG_PER_SEC     300.0f  // mouth movement speed — tune via tools/mouth_tune
-
-// Default pulse width range used by Servo::attach(pin) with no explicit
-// min/max — used here so writeMicroseconds() can move in fractional
-// degrees instead of the whole-degree steps Servo::write(int) is limited to.
-#define MOUTH_PULSE_MIN_US     544
-#define MOUTH_PULSE_MAX_US    2400
+#define MOUTH_OPEN_HOLD_MS     150UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame
@@ -113,14 +103,8 @@ bool glitchRight    = false;
 // ---------------------------------------------------------------------------
 int  errorStep      = 0;
 unsigned long errorStepMs = 0;
-bool mouthOpen        = false;
-unsigned long nextMouthFlapMs = 0;
-
-// Mouth glides toward mouthServoTarget at MOUTH_DEG_PER_SEC, in fractional
-// degrees, instead of snapping there instantly.
-float mouthServoAngle   = MOUTH_CLOSED;
-float mouthServoTarget  = MOUTH_CLOSED;
-unsigned long mouthServoStepMs = 0;
+bool mouthOpen        = false;   // chomp state: open-and-holding vs snapped shut
+unsigned long mouthOpenUntilMs = 0;
 
 // ---------------------------------------------------------------------------
 // Reboot sub-state
@@ -145,26 +129,6 @@ void showEyes(CRGB left, CRGB right) {
 
 void setEyes(CRGB color) {
     showEyes(color, color);
-}
-
-void writeMouthAngle(float angleDeg) {
-    angleDeg = constrain(angleDeg, 0.0f, 180.0f);
-    float us = MOUTH_PULSE_MIN_US +
-        (angleDeg / 180.0f) * (MOUTH_PULSE_MAX_US - MOUTH_PULSE_MIN_US);
-    mouthServo.writeMicroseconds((int)(us + 0.5f));
-}
-
-void updateMouthServo() {
-    unsigned long now = millis();
-    if (now - mouthServoStepMs < MOUTH_UPDATE_MS) return;
-    mouthServoStepMs = now;
-
-    if (mouthServoAngle == mouthServoTarget) return;
-
-    float step  = MOUTH_DEG_PER_SEC * (MOUTH_UPDATE_MS / 1000.0f);
-    float delta = mouthServoTarget - mouthServoAngle;
-    mouthServoAngle += (fabs(delta) <= step) ? delta : (delta > 0 ? step : -step);
-    writeMouthAngle(mouthServoAngle);
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +179,7 @@ void enterError() {
     errorStepMs   = millis();
     lookingAround = false;
     eyeServo.write(SERVO_CENTER);
-    mouthServoTarget = MOUTH_CLOSED;
+    mouthServo.write(MOUTH_CLOSED);
     mouthOpen     = false;
 }
 
@@ -316,24 +280,28 @@ void updateError() {
             if (now - errorStepMs >= ERROR_BLACKOUT_MS) {
                 FastLED.setBrightness(BRIGHTNESS_ERROR);
                 setEyes(CRGB::Red);
-                errorStep      = 2;
-                errorStepMs    = now;
-                nextMouthFlapMs = now + randRange(MOUTH_FLAP_MIN_MS, MOUTH_FLAP_MAX_MS);
+                errorStep   = 2;
+                errorStepMs = now;
+                mouthOpen   = false;   // triggers an immediate chomp on the next iteration
             }
             break;
         case 2:
             if (now - errorStepMs >= ERROR_RED_MS) {
                 setEyes(CRGB::Black);
-                mouthServoTarget = MOUTH_CLOSED;
+                mouthServo.write(MOUTH_CLOSED);
                 mouthOpen   = false;
                 errorStep   = 3;
                 errorStepMs = now;
                 break;
             }
-            if (now >= nextMouthFlapMs) {
-                mouthOpen = !mouthOpen;
-                mouthServoTarget = mouthOpen ? MOUTH_OPEN : MOUTH_CLOSED;
-                nextMouthFlapMs = now + randRange(MOUTH_FLAP_MIN_MS, MOUTH_FLAP_MAX_MS);
+            // Chomp: snap open as fast as possible, hold, snap shut, repeat.
+            if (!mouthOpen) {
+                mouthServo.write(MOUTH_OPEN);
+                mouthOpen        = true;
+                mouthOpenUntilMs = now + MOUTH_OPEN_HOLD_MS;
+            } else if (now >= mouthOpenUntilMs) {
+                mouthServo.write(MOUTH_CLOSED);
+                mouthOpen = false;
             }
             break;
         case 3:
@@ -404,9 +372,7 @@ void setup() {
 
     eyeServo.attach(SERVO_PIN);
     mouthServo.attach(MOUTH_PIN);
-    mouthServoAngle  = MOUTH_CLOSED;
-    mouthServoTarget = MOUTH_CLOSED;
-    writeMouthAngle(mouthServoAngle);
+    mouthServo.write(MOUTH_CLOSED);
 
     randomSeed(analogRead(0));
 
@@ -419,8 +385,6 @@ void setup() {
 // ---------------------------------------------------------------------------
 void loop() {
     unsigned long now = millis();
-
-    updateMouthServo();
 
     switch (currentState) {
         case STATE_NORMAL:

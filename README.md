@@ -30,7 +30,7 @@ Eyes are lit white. Every 8–15 seconds the eyes look left, then right, then re
 Every 2–3 seconds, one or both eyes briefly flicker on and off 2–4 times, then return to white. Simulates a malfunctioning animatronic.
 
 ### Error mode
-Triggered randomly every 3–5 minutes. Eyes go dark briefly, then illuminate red at full brightness for 8 seconds — during which the mouth flaps open and closed at a random, irregular interval — then eyes and mouth go still and dark. Always followed immediately by reboot mode.
+Triggered randomly every 3–5 minutes. Eyes go dark briefly, then illuminate red at full brightness for 8 seconds — during which the mouth chomps: snaps open as fast as the servo can move, holds open briefly, snaps shut, and immediately repeats — then eyes and mouth go still and dark. Always followed immediately by reboot mode.
 
 ### Reboot mode
 Eyes are dark for ~800 ms, then a single white pixel chases around each ring for 6 full rotations, then the eyes come back on steady white at normal brightness and return to normal mode.
@@ -56,8 +56,6 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define MOUTH_OPEN      150
 ```
 
-The mouth glides between positions in fractional degrees via `writeMicroseconds()` rather than snapping there with `Servo::write()` — see `MOUTH_DEG_PER_SEC` below.
-
 ### Brightness
 ```cpp
 #define BRIGHTNESS_NORMAL     200   // normal operation
@@ -72,9 +70,7 @@ The mouth glides between positions in fractional degrees via `writeMicroseconds(
 #define ERROR_MAX_MS   (5UL * 60 * 1000)   // 5 minutes
 #define LOOK_MIN_MS         8000UL   // minimum time between look-arounds
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
-#define MOUTH_FLAP_MIN_MS    120UL   // fastest mouth open/close interval during error
-#define MOUTH_FLAP_MAX_MS    220UL   // slowest mouth open/close interval during error
-#define MOUTH_DEG_PER_SEC   300.0f   // mouth movement speed, degrees per second
+#define MOUTH_OPEN_HOLD_MS   150UL   // how long the mouth stays open before snapping shut
 ```
 
 ## Building and Flashing
@@ -94,9 +90,9 @@ pio device monitor
 
 ## Tuning the mouth servo
 
-`MOUTH_OPEN`, `MOUTH_CLOSED`, and the flap timing only take effect during error
-mode, which triggers randomly every 3–5 minutes — impractical to tune by
-repeatedly waiting for it live. Instead, [`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp)
+`MOUTH_OPEN`, `MOUTH_CLOSED`, and `MOUTH_OPEN_HOLD_MS` only take effect during
+error mode, which triggers randomly every 3–5 minutes — impractical to tune
+by repeatedly waiting for it live. Instead, [`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp)
 is a standalone interactive sketch that drives the mouth servo directly from
 the serial monitor:
 
@@ -110,21 +106,19 @@ Serial commands:
 
 | Command | Effect |
 |---|---|
-| `<angle>` | Glide the servo to `<angle>` (0–180) at the current speed |
+| `<angle>` | Snap the servo to `<angle>` (0–180) |
 | `open` | Save the last angle as `MOUTH_OPEN` and move there |
 | `closed` | Save the last angle as `MOUTH_CLOSED` and move there |
-| `flap` | Toggle a continuous open/closed flap loop, to preview the error-mode look |
-| `flap <min> <max>` | Set the flap interval bounds (ms) and start the loop |
-| `speed <deg/sec>` | Set movement speed in degrees per second — lower is slower |
+| `chomp` | Toggle a continuous chomp loop (open, hold, snap shut, repeat), to preview the error-mode look |
+| `chomp <ms>` | Set the open-hold duration (ms) and start the loop |
 | `print` | Print `#define` lines ready to paste into `src/main.cpp` |
 
-Both the tuner and the real firmware move the servo via `writeMicroseconds()`
-in fractional degrees, updated at a fixed ~50Hz (matching the servo's own
-PWM refresh rate), rather than `Servo::write()`'s whole-degree steps — this
-is what makes slow speeds glide instead of stair-step.
+Movement is always `Servo::write()` at full speed — open and close are
+instantaneous snaps. The only tunable timing is how long the jaw stays open
+before snapping shut again.
 
 Once you're happy with the feel, copy the printed values into the
-`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_FLAP_MIN_MS` / `MOUTH_FLAP_MAX_MS` /
-`MOUTH_DEG_PER_SEC` `#define`s in [`src/main.cpp`](src/main.cpp), then
-reflash the main firmware with `pio run -t upload` (no `-e` needed —
-`esp32dev` is the default environment).
+`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_OPEN_HOLD_MS` `#define`s in
+[`src/main.cpp`](src/main.cpp), then reflash the main firmware with
+`pio run -t upload` (no `-e` needed — `esp32dev` is the default
+environment).
