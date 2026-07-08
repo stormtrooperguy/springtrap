@@ -56,6 +56,8 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define MOUTH_OPEN      150
 ```
 
+The mouth glides between positions rather than snapping — see `MOUTH_STEP_DELAY_MS` below.
+
 ### Brightness
 ```cpp
 #define BRIGHTNESS_NORMAL     200   // normal operation
@@ -72,6 +74,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
 #define MOUTH_FLAP_MIN_MS    120UL   // fastest mouth open/close interval during error
 #define MOUTH_FLAP_MAX_MS    220UL   // slowest mouth open/close interval during error
+#define MOUTH_STEP_DELAY_MS   15UL   // ms per degree of mouth movement (lower = faster)
 ```
 
 ## Building and Flashing
@@ -107,15 +110,16 @@ Serial commands:
 
 | Command | Effect |
 |---|---|
-| `<angle>` | Move the servo directly to `<angle>` (0–180) |
+| `<angle>` | Glide the servo to `<angle>` (0–180) at the current speed |
 | `open` | Save the last angle as `MOUTH_OPEN` and move there |
 | `closed` | Save the last angle as `MOUTH_CLOSED` and move there |
 | `flap` | Toggle a continuous open/closed flap loop, to preview the error-mode look |
 | `flap <min> <max>` | Set the flap interval bounds (ms) and start the loop |
+| `speed <ms>` | Set ms per degree of movement — lower is faster, higher is slower/smoother |
 | `print` | Print `#define` lines ready to paste into `src/main.cpp` |
 
 Once you're happy with the feel, copy the printed values into the
-`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_FLAP_MIN_MS` / `MOUTH_FLAP_MAX_MS`
-`#define`s in [`src/main.cpp`](src/main.cpp), then reflash the main firmware
-with `pio run -t upload` (no `-e` needed — `esp32dev` is the default
-environment).
+`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_FLAP_MIN_MS` / `MOUTH_FLAP_MAX_MS` /
+`MOUTH_STEP_DELAY_MS` `#define`s in [`src/main.cpp`](src/main.cpp), then
+reflash the main firmware with `pio run -t upload` (no `-e` needed —
+`esp32dev` is the default environment).
