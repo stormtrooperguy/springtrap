@@ -17,8 +17,8 @@
 
 Servo mouthServo;
 
-int mouthOpenAngle   = 150;
-int mouthClosedAngle = 90;
+int mouthOpenAngle   = 0;
+int mouthClosedAngle = 45;
 unsigned long openHoldMs = 150;   // how long the mouth stays open before snapping shut
 
 int lastAngle = 90;

@@ -18,8 +18,8 @@
 #define SERVO_CENTER   110
 #define SERVO_RIGHT    145
 
-#define MOUTH_CLOSED     90
-#define MOUTH_OPEN      150
+#define MOUTH_CLOSED     45
+#define MOUTH_OPEN        0
 
 // ---------------------------------------------------------------------------
 // Timing constants
