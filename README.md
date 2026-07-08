@@ -88,3 +88,34 @@ pio run --target upload
 # Monitor serial output
 pio device monitor
 ```
+
+## Tuning the mouth servo
+
+`MOUTH_OPEN`, `MOUTH_CLOSED`, and the flap timing only take effect during error
+mode, which triggers randomly every 3–5 minutes — impractical to tune by
+repeatedly waiting for it live. Instead, [`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp)
+is a standalone interactive sketch that drives the mouth servo directly from
+the serial monitor:
+
+```bash
+# Build and flash the tuner instead of the main firmware
+pio run -e mouth_tune -t upload
+pio device monitor -e mouth_tune
+```
+
+Serial commands:
+
+| Command | Effect |
+|---|---|
+| `<angle>` | Move the servo directly to `<angle>` (0–180) |
+| `open` | Save the last angle as `MOUTH_OPEN` and move there |
+| `closed` | Save the last angle as `MOUTH_CLOSED` and move there |
+| `flap` | Toggle a continuous open/closed flap loop, to preview the error-mode look |
+| `flap <min> <max>` | Set the flap interval bounds (ms) and start the loop |
+| `print` | Print `#define` lines ready to paste into `src/main.cpp` |
+
+Once you're happy with the feel, copy the printed values into the
+`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_FLAP_MIN_MS` / `MOUTH_FLAP_MAX_MS`
+`#define`s in [`src/main.cpp`](src/main.cpp), then reflash the main firmware
+with `pio run -t upload` (no `-e` needed — `esp32dev` is the default
+environment).
