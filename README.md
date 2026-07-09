@@ -30,7 +30,9 @@ Eyes are lit white and the mouth rests open. Every 8–15 seconds the eyes look 
 Every 2–3 seconds, one or both eyes briefly flicker on and off 2–4 times, then return to white. Simulates a malfunctioning animatronic.
 
 ### Error mode
-Triggered randomly every 3–5 minutes. Eyes go dark briefly, then for 8 seconds a red comet (bright head with a short fading tail) spins continuously around both rings at full brightness, centered forward — then eyes and mouth go still and dark. Always followed immediately by reboot mode. Through the blackout and red chase, the mouth chomps the whole time: snaps open as fast as the servo can move, holds open briefly, snaps shut, and immediately repeats.
+Triggered randomly every 3–5 minutes. Eyes go dark briefly, then for 8 seconds a red comet (bright head with a short fading tail) spins continuously around both rings at full brightness — then eyes and mouth go still and dark. Always followed immediately by reboot mode. Through the blackout and red chase, the eye servo sweeps continuously left/right, recentering during the brief fadeout before reboot; the mouth chomps the whole time: snaps open as fast as the servo can move, holds open briefly, snaps shut, and immediately repeats.
+
+Running the eye sweep, mouth chomp, and full-brightness LED chase simultaneously draws enough current to brown out an underpowered supply — this was confirmed on a marginal setup and fixed by upgrading to a well-regulated 5V/6A supply. If error mode starts cutting short again, suspect power first.
 
 ### Reboot mode
 Eyes are dark for ~800 ms, then a single white pixel chases around each ring for 6 full rotations, then the eyes come back on steady white at normal brightness and return to normal mode.
@@ -72,6 +74,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
 #define ERROR_CHASE_STEP_MS   60UL   // ms per red chase frame during error
 #define ERROR_CHASE_TAIL_LEN    3    // comet length in pixels, including the head
+#define ERROR_LOOK_HOLD_MS   600UL   // how long the eyes hold each side during the error sweep
 #define MOUTH_OPEN_HOLD_MS   500UL   // how long the mouth stays open before snapping shut
 #define MOUTH_CLOSE_HOLD_MS  500UL   // how long it stays closed before reopening
 ```
