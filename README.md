@@ -23,9 +23,9 @@ The LED chain runs left eye first (indices 0–6), then right eye (indices 7–1
 
 ## Web Interface
 
-Connect to the `fazbear_sec` WiFi network and navigate to **http://springtrap.local** (mDNS) or **http://192.168.4.1**.
+Springtrap is the hub of the rig: it always hosts the `fazbear_sec` AP at `192.168.4.1` and never joins another network. Connect to `fazbear_sec` and navigate to **http://192.168.4.1** (or **http://springtrap.local** via mDNS, on platforms that support it).
 
-The AP is pinned to a fixed WiFi channel (`WIFI_CHANNEL`, default 1). This **must match cupcake's `WIFI_CHANNEL`**: cupcake runs AP+STA off a single radio, so its own AP and its station link to `fazbear_sec` have to share a channel — pinning `fazbear_sec` to that same channel keeps cupcake's radio from hopping (which would otherwise drop cupcake's AP clients).
+**Static-IP reservation:** the softAP's DHCP server is constrained to hand out `192.168.4.100–.150`, leaving `.2–.99` free for satellites that assign themselves a static address (cupcake pins itself to `192.168.4.2`). Without this, the DHCP server's default pool starts at `.2` and would hand that address to some other client, colliding with cupcake — which is exactly what happened before the pool was moved up. Any future statically-addressed satellite should also use an address in `.2–.99`.
 
 The password is defined in `src/secrets.h` (gitignored). Copy `src/secrets.h.example` to `src/secrets.h` and set your own password before building:
 
