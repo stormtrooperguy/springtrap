@@ -15,6 +15,8 @@
 #include <ESPmDNS.h>
 #include <HTTPClient.h>
 #include <esp_system.h>  // esp_random() -- hardware RNG, reliable with WiFi active
+#include <esp_netif.h>              // softAP DHCP pool configuration
+#include "dhcpserver/dhcpserver.h"  // dhcps_lease_t
 #include "secrets.h"
 
 // ---------------------------------------------------------------------------
@@ -714,6 +716,25 @@ void setup() {
     IPAddress subnet(255, 255, 255, 0);
     WiFi.softAPConfig(local_IP, gateway, subnet);
     WiFi.softAP(ap_ssid, ap_password, WIFI_CHANNEL);
+
+    // Constrain the DHCP pool to .100-.200 so the low addresses stay free for
+    // statically-assigned satellites. The softAP DHCP server leases starting
+    // at .2 by default, which collided with cupcake's static 192.168.4.2 --
+    // the server handed .2 to another client (a tablet), so springtrap's
+    // trigger to 192.168.4.2 was hitting the wrong device. With the pool
+    // moved up, .2-.99 are reserved for statics like cupcake.
+    esp_netif_t* apNetif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    if (apNetif) {
+        esp_netif_dhcps_stop(apNetif);
+        dhcps_lease_t lease;
+        lease.enable        = true;
+        lease.start_ip.addr = (uint32_t)IPAddress(192, 168, 4, 100);
+        lease.end_ip.addr   = (uint32_t)IPAddress(192, 168, 4, 200);
+        esp_netif_dhcps_option(apNetif, ESP_NETIF_OP_SET, ESP_NETIF_REQUESTED_IP_ADDRESS,
+                               &lease, sizeof(lease));
+        esp_netif_dhcps_start(apNetif);
+        Serial.println("DHCP pool: 192.168.4.100-.200 (.2-.99 reserved for statics)");
+    }
 
     Serial.print("AP started: "); Serial.println(ap_ssid);
     Serial.print("IP: ");         Serial.println(WiFi.softAPIP());
