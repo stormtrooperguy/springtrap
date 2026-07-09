@@ -40,8 +40,11 @@
 #define GLITCH_ON_MS           40UL  // each flicker-on gap
 
 #define ERROR_BLACKOUT_MS     500UL  // brief off before red
-#define ERROR_RED_MS         8000UL  // time spent red
+#define ERROR_RED_MS         8000UL  // total time spent in the red chase
 #define ERROR_FADEOUT_MS      200UL  // pause after red before reboot
+
+#define ERROR_CHASE_STEP_MS    60UL  // ms per red chase frame
+#define ERROR_CHASE_TAIL_LEN     3   // comet length in pixels, including the head
 
 #define MOUTH_OPEN_HOLD_MS     500UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
@@ -111,6 +114,8 @@ int  errorStep      = 0;
 unsigned long errorStepMs = 0;
 bool mouthOpen        = false;   // chomp state: open-and-holding vs snapped shut
 unsigned long mouthPhaseUntilMs = 0;
+int  errorChasePos      = 0;
+unsigned long errorChaseStepMs = 0;
 
 // ---------------------------------------------------------------------------
 // Reboot sub-state
@@ -285,9 +290,10 @@ void updateError() {
         case 1:
             if (now - errorStepMs >= ERROR_BLACKOUT_MS) {
                 FastLED.setBrightness(BRIGHTNESS_ERROR);
-                setEyes(CRGB::Red);
-                errorStep   = 2;
-                errorStepMs = now;
+                errorStep       = 2;
+                errorStepMs     = now;
+                errorChasePos   = 0;
+                errorChaseStepMs = now;
                 mouthOpen        = false;
                 mouthPhaseUntilMs = now;   // triggers an immediate chomp on the next iteration
             }
@@ -300,6 +306,21 @@ void updateError() {
                 errorStep   = 3;
                 errorStepMs = now;
                 break;
+            }
+            // Red comet chase: a bright head with a short fading tail spins
+            // continuously around both rings for the whole red phase.
+            if (now - errorChaseStepMs >= ERROR_CHASE_STEP_MS) {
+                fill_solid(leds, TOTAL_LEDS, CRGB::Black);
+                for (int t = 0; t < ERROR_CHASE_TAIL_LEN; t++) {
+                    int pos = (errorChasePos - t + NUM_LEDS) % NUM_LEDS;
+                    CRGB c  = CRGB::Red;
+                    c.nscale8(255 / (t + 1));
+                    leftEye[pos]  = c;
+                    rightEye[pos] = c;
+                }
+                FastLED.show();
+                errorChasePos    = (errorChasePos + 1) % NUM_LEDS;
+                errorChaseStepMs = now;
             }
             // Chomp: snap open as fast as possible, hold, snap shut, hold
             // briefly (see MOUTH_CLOSE_HOLD_MS), repeat.
