@@ -45,12 +45,11 @@
 
 #define MOUTH_OPEN_HOLD_MS     150UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
-// Minimum time to hold the closed position before reopening. The servo PWM
-// signal only updates at ~50Hz, so a write() immediately followed by
-// another write() on the next loop() iteration can get overwritten before
-// the hardware ever outputs that pulse — the mouth would never visibly
-// close. This isn't a "look" tuning knob, just a hardware floor.
-#define MOUTH_CLOSE_HOLD_MS     40UL
+// How long the mouth stays closed before reopening. Must be at least the
+// servo's actual travel time for the full open<->closed span (typically
+// ~1.5-3ms per degree for a hobby servo) — too short and it gets recalled
+// to open mid-swing before ever reaching closed. Tune via tools/mouth_tune.
+#define MOUTH_CLOSE_HOLD_MS    150UL
 
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame

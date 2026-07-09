@@ -71,7 +71,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define LOOK_MIN_MS         8000UL   // minimum time between look-arounds
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
 #define MOUTH_OPEN_HOLD_MS   150UL   // how long the mouth stays open before snapping shut
-#define MOUTH_CLOSE_HOLD_MS   40UL   // minimum time to hold closed before reopening (hardware floor, not a tuning knob)
+#define MOUTH_CLOSE_HOLD_MS  150UL   // how long it stays closed before reopening
 ```
 
 ## Building and Flashing
@@ -91,11 +91,12 @@ pio device monitor
 
 ## Tuning the mouth servo
 
-`MOUTH_OPEN`, `MOUTH_CLOSED`, and `MOUTH_OPEN_HOLD_MS` only take effect during
-error mode, which triggers randomly every 3–5 minutes — impractical to tune
-by repeatedly waiting for it live. Instead, [`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp)
-is a standalone interactive sketch that drives the mouth servo directly from
-the serial monitor:
+`MOUTH_OPEN`, `MOUTH_CLOSED`, `MOUTH_OPEN_HOLD_MS`, and `MOUTH_CLOSE_HOLD_MS`
+only take effect during error mode, which triggers randomly every 3–5
+minutes — impractical to tune by repeatedly waiting for it live. Instead,
+[`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp) is a standalone
+interactive sketch that drives the mouth servo directly from the serial
+monitor:
 
 ```bash
 # Build and flash the tuner instead of the main firmware
@@ -110,20 +111,23 @@ Serial commands:
 | `<angle>` | Snap the servo to `<angle>` (0–180) |
 | `open` | Save the last angle as `MOUTH_OPEN` and move there |
 | `closed` | Save the last angle as `MOUTH_CLOSED` and move there |
-| `chomp` | Toggle a continuous chomp loop (open, hold, snap shut, repeat), to preview the error-mode look |
+| `chomp` | Toggle a continuous chomp loop (open, hold, snap shut, hold, repeat), to preview the error-mode look |
 | `chomp <ms>` | Set the open-hold duration (ms) and start the loop |
+| `close <ms>` | Set the closed-hold duration (ms) and start the loop |
 | `print` | Print `#define` lines ready to paste into `src/main.cpp` |
 
 Movement is always `Servo::write()` at full speed — open and close are
-instantaneous snaps. The only tunable timing is how long the jaw stays open
-before snapping shut again. Closed is also held briefly (`MOUTH_CLOSE_HOLD_MS`,
-fixed at 40ms) before reopening — the servo's PWM signal only updates at
-~50Hz, so without that minimum hold the closed command gets overwritten by
-the next "open" before the hardware ever outputs it, and the mouth never
-visibly closes.
+commanded as instantaneous snaps. But the servo still takes real time to
+physically travel there (roughly 1.5–3ms per degree for a typical hobby
+servo), so both the open-hold and closed-hold durations need to be at least
+that long — too short and the servo gets recalled to the other position
+mid-swing, before it ever reaches the target, which looks like a small
+partial movement instead of a full chomp. If that happens, raise the
+relevant hold with `chomp <ms>` / `close <ms>` until each side completes
+its full travel.
 
 Once you're happy with the feel, copy the printed values into the
-`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_OPEN_HOLD_MS` `#define`s in
-[`src/main.cpp`](src/main.cpp), then reflash the main firmware with
-`pio run -t upload` (no `-e` needed — `esp32dev` is the default
+`MOUTH_OPEN` / `MOUTH_CLOSED` / `MOUTH_OPEN_HOLD_MS` / `MOUTH_CLOSE_HOLD_MS`
+`#define`s in [`src/main.cpp`](src/main.cpp), then reflash the main firmware
+with `pio run -t upload` (no `-e` needed — `esp32dev` is the default
 environment).

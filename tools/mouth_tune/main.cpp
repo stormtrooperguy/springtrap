@@ -8,18 +8,14 @@
 
 #define MOUTH_PIN 4
 
-// Minimum time to hold the closed position before reopening. The servo PWM
-// signal only updates at ~50Hz, so a write() immediately followed by
-// another write() on the next loop() iteration can get overwritten before
-// the hardware ever outputs that pulse — the mouth would never visibly
-// close. This isn't a "look" tuning knob, just a hardware floor.
-#define MOUTH_CLOSE_HOLD_MS 40UL
-
 Servo mouthServo;
 
 int mouthOpenAngle   = 0;
 int mouthClosedAngle = 45;
-unsigned long openHoldMs = 150;   // how long the mouth stays open before snapping shut
+unsigned long openHoldMs  = 150;   // how long the mouth stays open before snapping shut
+unsigned long closeHoldMs = 150;   // how long it stays closed before reopening — must be
+                                    // >= the servo's actual travel time for the full
+                                    // open<->closed span, or it gets recalled mid-swing
 
 int lastAngle = 90;
 bool chomping = false;
@@ -31,8 +27,9 @@ void printHelp() {
     Serial.println("  <angle>       snap the servo to <angle> (0-180)");
     Serial.println("  open          save last angle as MOUTH_OPEN and move there");
     Serial.println("  closed        save last angle as MOUTH_CLOSED and move there");
-    Serial.println("  chomp         toggle continuous chomp test (open, hold, snap shut, repeat)");
+    Serial.println("  chomp         toggle continuous chomp test (open, hold, snap shut, hold, repeat)");
     Serial.println("  chomp <ms>    set the open-hold duration (ms) and start the test");
+    Serial.println("  close <ms>    set the closed-hold duration (ms) and start the test");
     Serial.println("  print         print #define lines to paste into main.cpp");
     Serial.println("  help          show this message");
 }
@@ -42,6 +39,7 @@ void printValues() {
     Serial.printf("#define MOUTH_OPEN            %d\n", mouthOpenAngle);
     Serial.printf("#define MOUTH_CLOSED          %d\n", mouthClosedAngle);
     Serial.printf("#define MOUTH_OPEN_HOLD_MS    %luUL\n", openHoldMs);
+    Serial.printf("#define MOUTH_CLOSE_HOLD_MS   %luUL\n", closeHoldMs);
     Serial.println("---");
 }
 
@@ -87,6 +85,17 @@ void handleLine(String line) {
         }
         return;
     }
+    if (line.startsWith("close ")) {
+        long ms = line.substring(6).toInt();
+        if (ms > 0) {
+            closeHoldMs = ms;
+            Serial.printf("Close-hold set to %lums\n", closeHoldMs);
+            chomping  = true;
+            mouthOpen = false;
+            mouthPhaseUntilMs = millis();
+        }
+        return;
+    }
 
     // Otherwise treat the line as an angle to snap to directly.
     int angle = constrain(line.toInt(), 0, 180);
@@ -115,7 +124,7 @@ void loop() {
             if (mouthOpen) {
                 mouthServo.write(mouthClosedAngle);
                 mouthOpen         = false;
-                mouthPhaseUntilMs = now + MOUTH_CLOSE_HOLD_MS;
+                mouthPhaseUntilMs = now + closeHoldMs;
             } else {
                 mouthServo.write(mouthOpenAngle);
                 mouthOpen         = true;
