@@ -24,6 +24,13 @@ const char* ap_ssid     = "fazbear_sec";
 const char* ap_password = AP_PASSWORD;
 const char* mdns_host   = "springtrap";   // reachable at http://springtrap.local
 
+// Fixed WiFi channel for the whole rig. Cupcake runs AP+STA off a single
+// radio, so its SoftAP and its station-side link to fazbear_sec must share
+// one channel; pinning fazbear_sec here to the same channel cupcake uses
+// keeps cupcake's radio from ever hopping (which would drop its AP clients).
+// MUST match cupcake's WIFI_CHANNEL.
+#define WIFI_CHANNEL 1
+
 // ---------------------------------------------------------------------------
 // Cross-device coordination: when error/reboot fires, also trigger
 // cupcake's bite action (if cupcake is reachable on fazbear_sec) for a
@@ -706,7 +713,7 @@ void setup() {
     IPAddress gateway(192, 168, 4, 1);
     IPAddress subnet(255, 255, 255, 0);
     WiFi.softAPConfig(local_IP, gateway, subnet);
-    WiFi.softAP(ap_ssid, ap_password);
+    WiFi.softAP(ap_ssid, ap_password, WIFI_CHANNEL);
 
     Serial.print("AP started: "); Serial.println(ap_ssid);
     Serial.print("IP: ");         Serial.println(WiFi.softAPIP());

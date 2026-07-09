@@ -25,6 +25,8 @@ The LED chain runs left eye first (indices 0–6), then right eye (indices 7–1
 
 Connect to the `fazbear_sec` WiFi network and navigate to **http://springtrap.local** (mDNS) or **http://192.168.4.1**.
 
+The AP is pinned to a fixed WiFi channel (`WIFI_CHANNEL`, default 1). This **must match cupcake's `WIFI_CHANNEL`**: cupcake runs AP+STA off a single radio, so its own AP and its station link to `fazbear_sec` have to share a channel — pinning `fazbear_sec` to that same channel keeps cupcake's radio from hopping (which would otherwise drop cupcake's AP clients).
+
 The password is defined in `src/secrets.h` (gitignored). Copy `src/secrets.h.example` to `src/secrets.h` and set your own password before building:
 
 ```cpp
