@@ -1,6 +1,6 @@
 # Springtrap Eye Controller
 
-ESP32 firmware for controlling the animated eyes and mouth of a Halloween animatronic. Both eyes share a single chain of 14 WS2812B LEDs (7 per eye). One servo moves both eyes left and right, and a second servo opens and closes the mouth.
+ESP32 firmware for controlling the animated eyes and mouth of a Halloween animatronic. Both eyes share a single chain of 14 WS2812B LEDs (7 per eye). One servo moves both eyes left and right, and a second servo opens and closes the mouth. Runs autonomously on a random schedule and can also be controlled remotely from a tablet over a web interface served via WiFi access point.
 
 ## Hardware
 
@@ -21,21 +21,34 @@ ESP32 firmware for controlling the animated eyes and mouth of a Halloween animat
 
 The LED chain runs left eye first (indices 0–6), then right eye (indices 7–13). The servos and LED rings are powered externally (5V). All grounds must be common — external supply ground and ESP32 GND tied together.
 
+## Web Interface
+
+Connect to the `fazbear_sec` WiFi network and navigate to **http://192.168.4.1**.
+
+The password is defined in `src/secrets.h` (gitignored). Copy `src/secrets.h.example` to `src/secrets.h` and set your own password before building:
+
+```cpp
+#define AP_PASSWORD "yourpassword"
+```
+
+| Control | What it does |
+|---|---|
+| **ERROR / REBOOT** button | Manually triggers the error/reboot routine on demand, regardless of Auto Loop state. Ignored if the routine is already running. |
+| **Auto Loop** toggle | On (default): the error/reboot routine also fires automatically on a random 3–5 minute schedule, matching the original always-on behavior. Off: eye movement keeps running, but error/reboot only fires when triggered manually. |
+
+The status bar shows the current routine (`Eye Movement` / `Error / Reboot`) and Auto Loop state, updated live via server-sent events — no polling.
+
 ## Behavior
 
-### Normal mode (default)
-Eyes are lit white and the mouth rests open. Every 8–15 seconds the eyes look left, then right, then return to center.
+The firmware is built around two routines. Only one runs at a time; error/reboot always runs to completion once started (a re-trigger while it's already running is ignored), then control returns to eye movement.
 
-### Glitch mode
-Every 2–3 seconds, one or both eyes briefly flicker on and off 2–4 times, then return to white. Simulates a malfunctioning animatronic.
+### Eye movement routine (idle)
+Eyes are lit white and the mouth rests open. Every 8–15 seconds the eyes look left, then right, then return to center. Every 2–3 seconds, one or both eyes briefly flicker on and off 2–4 times, then return to white, simulating a malfunctioning animatronic.
 
-### Error mode
-Triggered randomly every 3–5 minutes. Eyes go dark briefly, then for 8 seconds a red comet (bright head with a short fading tail) spins continuously around both rings at full brightness — then eyes and mouth go still and dark. Always followed immediately by reboot mode. Through the blackout and red chase, the eye servo sweeps continuously left/right, recentering during the brief fadeout before reboot; the mouth chomps the whole time: snaps open as fast as the servo can move, holds open briefly, snaps shut, and immediately repeats.
+### Error/reboot routine
+Triggered either automatically (Auto Loop on, every 3–5 minutes) or manually from the web interface. Eyes go dark briefly, then for 8 seconds a red comet (bright head with a short fading tail) spins continuously around both rings at full brightness — then eyes and mouth go still and dark, followed immediately by the reboot chase. Through the blackout and red chase, the eye servo sweeps continuously left/right, recentering during the brief fadeout before reboot; the mouth chomps the whole time: snaps open as fast as the servo can move, holds open briefly, snaps shut, and immediately repeats. The reboot phase then goes dark for ~800ms, a single white pixel chases around each ring for 6 full rotations, and the eyes come back on steady white before handing control back to the eye movement routine.
 
-Running the eye sweep, mouth chomp, and full-brightness LED chase simultaneously draws enough current to brown out an underpowered supply — this was confirmed on a marginal setup and fixed by upgrading to a well-regulated 5V/6A supply. If error mode starts cutting short again, suspect power first.
-
-### Reboot mode
-Eyes are dark for ~800 ms, then a single white pixel chases around each ring for 6 full rotations, then the eyes come back on steady white at normal brightness and return to normal mode.
+Running the eye sweep, mouth chomp, and full-brightness LED chase simultaneously draws enough current to brown out an underpowered supply — this was confirmed on a marginal setup and fixed by upgrading to a well-regulated 5V/6A supply. If the sequence starts cutting short, suspect power first.
 
 ## Configuration
 
@@ -60,16 +73,16 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 
 ### Brightness
 ```cpp
-#define BRIGHTNESS_NORMAL     200   // normal operation
-#define BRIGHTNESS_ERROR      255   // full brightness during red error sequence
+#define BRIGHTNESS_NORMAL     200   // eye movement routine
+#define BRIGHTNESS_ERROR      255   // full brightness during the red error chase
 ```
 
 ### Timing
 ```cpp
 #define GLITCH_MIN_MS       2000UL   // minimum time between glitches
 #define GLITCH_MAX_MS       3000UL   // maximum time between glitches
-#define ERROR_MIN_MS   (3UL * 60 * 1000)   // 3 minutes
-#define ERROR_MAX_MS   (5UL * 60 * 1000)   // 5 minutes
+#define ERROR_MIN_MS   (3UL * 60 * 1000)   // 3 minutes — auto-loop schedule
+#define ERROR_MAX_MS   (5UL * 60 * 1000)   // 5 minutes — auto-loop schedule
 #define LOOK_MIN_MS         8000UL   // minimum time between look-arounds
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
 #define ERROR_CHASE_STEP_MS   60UL   // ms per red chase frame during error
@@ -97,11 +110,12 @@ pio device monitor
 ## Tuning the mouth servo
 
 `MOUTH_OPEN`, `MOUTH_CLOSED`, `MOUTH_OPEN_HOLD_MS`, and `MOUTH_CLOSE_HOLD_MS`
-only take effect during error mode, which triggers randomly every 3–5
-minutes — impractical to tune by repeatedly waiting for it live. Instead,
-[`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp) is a standalone
-interactive sketch that drives the mouth servo directly from the serial
-monitor:
+only take effect during the error/reboot routine, which triggers randomly
+every 3–5 minutes (or on demand from the web interface, but that still means
+flashing the full firmware to test) — impractical to tune by repeatedly
+waiting for it live. Instead, [`tools/mouth_tune/main.cpp`](tools/mouth_tune/main.cpp)
+is a standalone interactive sketch that drives the mouth servo directly from
+the serial monitor:
 
 ```bash
 # Build and flash the tuner instead of the main firmware
