@@ -12,6 +12,7 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <ESPmDNS.h>
 #include <esp_system.h>  // esp_random() -- hardware RNG, reliable with WiFi active
 #include "secrets.h"
 
@@ -20,6 +21,7 @@
 // ---------------------------------------------------------------------------
 const char* ap_ssid     = "fazbear_sec";
 const char* ap_password = AP_PASSWORD;
+const char* mdns_host   = "springtrap";   // reachable at http://springtrap.local
 
 // ---------------------------------------------------------------------------
 // Hardware pin configuration — adjust after physical install
@@ -678,6 +680,15 @@ void setup() {
 
     Serial.print("AP started: "); Serial.println(ap_ssid);
     Serial.print("IP: ");         Serial.println(WiFi.softAPIP());
+
+    if (MDNS.begin(mdns_host)) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.print("mDNS responder started: http://");
+        Serial.print(mdns_host);
+        Serial.println(".local");
+    } else {
+        Serial.println("mDNS init failed");
+    }
 
     buildPageHtml(pageHtml);   // static content, built once
     setupWebServer();

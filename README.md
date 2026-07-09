@@ -23,7 +23,7 @@ The LED chain runs left eye first (indices 0–6), then right eye (indices 7–1
 
 ## Web Interface
 
-Connect to the `fazbear_sec` WiFi network and navigate to **http://192.168.4.1**.
+Connect to the `fazbear_sec` WiFi network and navigate to **http://springtrap.local** (mDNS) or **http://192.168.4.1**.
 
 The password is defined in `src/secrets.h` (gitignored). Copy `src/secrets.h.example` to `src/secrets.h` and set your own password before building:
 
