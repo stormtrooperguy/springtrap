@@ -43,13 +43,13 @@
 #define ERROR_RED_MS         8000UL  // time spent red
 #define ERROR_FADEOUT_MS      200UL  // pause after red before reboot
 
-#define MOUTH_OPEN_HOLD_MS     150UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
+#define MOUTH_OPEN_HOLD_MS     500UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
 // How long the mouth stays closed before reopening. Must be at least the
 // servo's actual travel time for the full open<->closed span (typically
 // ~1.5-3ms per degree for a hobby servo) — too short and it gets recalled
 // to open mid-swing before ever reaching closed. Tune via tools/mouth_tune.
-#define MOUTH_CLOSE_HOLD_MS    150UL
+#define MOUTH_CLOSE_HOLD_MS    300UL
 
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame

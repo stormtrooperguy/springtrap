@@ -70,8 +70,8 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define ERROR_MAX_MS   (5UL * 60 * 1000)   // 5 minutes
 #define LOOK_MIN_MS         8000UL   // minimum time between look-arounds
 #define LOOK_MAX_MS        15000UL   // maximum time between look-arounds
-#define MOUTH_OPEN_HOLD_MS   150UL   // how long the mouth stays open before snapping shut
-#define MOUTH_CLOSE_HOLD_MS  150UL   // how long it stays closed before reopening
+#define MOUTH_OPEN_HOLD_MS   500UL   // how long the mouth stays open before snapping shut
+#define MOUTH_CLOSE_HOLD_MS  300UL   // how long it stays closed before reopening
 ```
 
 ## Building and Flashing

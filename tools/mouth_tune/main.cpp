@@ -12,8 +12,8 @@ Servo mouthServo;
 
 int mouthOpenAngle   = 0;
 int mouthClosedAngle = 45;
-unsigned long openHoldMs  = 150;   // how long the mouth stays open before snapping shut
-unsigned long closeHoldMs = 150;   // how long it stays closed before reopening — must be
+unsigned long openHoldMs  = 500;   // how long the mouth stays open before snapping shut
+unsigned long closeHoldMs = 300;   // how long it stays closed before reopening — must be
                                     // >= the servo's actual travel time for the full
                                     // open<->closed span, or it gets recalled mid-swing
 
