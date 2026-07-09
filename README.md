@@ -51,7 +51,7 @@ Triggered either automatically (Auto Loop on, every 3–5 minutes) or manually f
 Running the eye sweep, mouth chomp, and full-brightness LED chase simultaneously draws enough current to brown out an underpowered supply — this was confirmed on a marginal setup and fixed by upgrading to a well-regulated 5V/6A supply. If the sequence starts cutting short, suspect power first.
 
 ### Cross-device coordination
-Right when the routine starts (during the initial blackout), springtrap resolves `cupcake.local` via mDNS on the `fazbear_sec` network and fires cupcake's bite action (`GET /a/bite`), so both animatronics glitch out together. This is best-effort: if cupcake isn't connected to `fazbear_sec` or doesn't respond within ~300–500ms, springtrap logs it to serial and proceeds with its own routine regardless — nothing here can block or fail the local sequence.
+Right when the routine starts (during the initial blackout), springtrap hits cupcake directly at its known static IP (`192.168.4.2` — cupcake pins itself to that address whether it's on `fazbear_sec` or its own AP) and fires its bite action (`GET /a/bite`), so both animatronics glitch out together. This is best-effort: if cupcake isn't connected to `fazbear_sec` or doesn't respond within ~500ms, springtrap logs it to serial and proceeds with its own routine regardless — nothing here can block or fail the local sequence.
 
 ## Configuration
 

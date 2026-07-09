@@ -27,13 +27,12 @@ const char* mdns_host   = "springtrap";   // reachable at http://springtrap.loca
 // ---------------------------------------------------------------------------
 // Cross-device coordination: when error/reboot fires, also trigger
 // cupcake's bite action (if cupcake is reachable on fazbear_sec) for a
-// synchronized jump-scare across both animatronics. Resolved fresh via
-// mDNS each time rather than cached, since cupcake's IP can change across
-// reconnects and error/reboot only fires every few minutes at most.
+// synchronized jump-scare across both animatronics. Cupcake pins itself to
+// a static 192.168.4.2 on this network (see its own firmware), so no
+// discovery step is needed -- just hit it directly.
 // ---------------------------------------------------------------------------
-#define CUPCAKE_MDNS_HOST          "cupcake"
-#define CUPCAKE_MDNS_TIMEOUT_MS    300UL   // mDNS query timeout
-#define CUPCAKE_HTTP_TIMEOUT_MS    500UL   // HTTP connect+read timeout
+#define CUPCAKE_IP              IPAddress(192, 168, 4, 2)
+#define CUPCAKE_HTTP_TIMEOUT_MS 500UL   // HTTP connect+read timeout
 
 // ---------------------------------------------------------------------------
 // Hardware pin configuration — adjust after physical install
@@ -350,18 +349,13 @@ void updateEyeMovement() {
     }
 }
 
-// Best-effort: resolve cupcake on fazbear_sec via mDNS and fire its bite
-// action. Silently does nothing if cupcake isn't found or doesn't respond —
-// springtrap's own routine proceeds regardless either way. Bounded to well
-// under a second so it's not noticeable inside the blackout that follows.
+// Best-effort: fire cupcake's bite action at its known static IP. Silently
+// does nothing if cupcake doesn't respond -- springtrap's own routine
+// proceeds regardless either way. Bounded to well under a second so it's
+// not noticeable inside the blackout that follows.
 void triggerCupcakeBite() {
-    IPAddress ip = MDNS.queryHost(CUPCAKE_MDNS_HOST, CUPCAKE_MDNS_TIMEOUT_MS);
-    if (ip == IPAddress(0, 0, 0, 0)) {
-        Serial.println("Cupcake not found on fazbear_sec -- skipping coordinated trigger");
-        return;
-    }
     HTTPClient http;
-    String url = "http://" + ip.toString() + "/a/bite";
+    String url = "http://" + CUPCAKE_IP.toString() + "/a/bite";
     http.setConnectTimeout(CUPCAKE_HTTP_TIMEOUT_MS);
     http.setTimeout(CUPCAKE_HTTP_TIMEOUT_MS);
     http.begin(url);
