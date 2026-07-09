@@ -13,6 +13,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
+#include <HTTPClient.h>
 #include <esp_system.h>  // esp_random() -- hardware RNG, reliable with WiFi active
 #include "secrets.h"
 
@@ -22,6 +23,17 @@
 const char* ap_ssid     = "fazbear_sec";
 const char* ap_password = AP_PASSWORD;
 const char* mdns_host   = "springtrap";   // reachable at http://springtrap.local
+
+// ---------------------------------------------------------------------------
+// Cross-device coordination: when error/reboot fires, also trigger
+// cupcake's bite action (if cupcake is reachable on fazbear_sec) for a
+// synchronized jump-scare across both animatronics. Resolved fresh via
+// mDNS each time rather than cached, since cupcake's IP can change across
+// reconnects and error/reboot only fires every few minutes at most.
+// ---------------------------------------------------------------------------
+#define CUPCAKE_MDNS_HOST          "cupcake"
+#define CUPCAKE_MDNS_TIMEOUT_MS    300UL   // mDNS query timeout
+#define CUPCAKE_HTTP_TIMEOUT_MS    500UL   // HTTP connect+read timeout
 
 // ---------------------------------------------------------------------------
 // Hardware pin configuration — adjust after physical install
@@ -338,6 +350,29 @@ void updateEyeMovement() {
     }
 }
 
+// Best-effort: resolve cupcake on fazbear_sec via mDNS and fire its bite
+// action. Silently does nothing if cupcake isn't found or doesn't respond —
+// springtrap's own routine proceeds regardless either way. Bounded to well
+// under a second so it's not noticeable inside the blackout that follows.
+void triggerCupcakeBite() {
+    IPAddress ip = MDNS.queryHost(CUPCAKE_MDNS_HOST, CUPCAKE_MDNS_TIMEOUT_MS);
+    if (ip == IPAddress(0, 0, 0, 0)) {
+        Serial.println("Cupcake not found on fazbear_sec -- skipping coordinated trigger");
+        return;
+    }
+    HTTPClient http;
+    String url = "http://" + ip.toString() + "/a/bite";
+    http.setConnectTimeout(CUPCAKE_HTTP_TIMEOUT_MS);
+    http.setTimeout(CUPCAKE_HTTP_TIMEOUT_MS);
+    http.begin(url);
+    int code = http.GET();
+    http.end();
+    Serial.print("Triggered cupcake bite (");
+    Serial.print(url);
+    Serial.print("): HTTP ");
+    Serial.println(code);
+}
+
 // ---------------------------------------------------------------------------
 // Error/reboot routine — brief blackout → red comet chase + eye sweep +
 // mouth chomp for 8s → fadeout → reboot chase → back to eye movement.
@@ -352,6 +387,7 @@ void enterErrorPhase() {
     eyeServo.write(SERVO_LEFT);
     mouthServo.write(MOUTH_OPEN);
     mouthOpen     = true;
+    triggerCupcakeBite();
 }
 
 void enterRebootPhase() {
