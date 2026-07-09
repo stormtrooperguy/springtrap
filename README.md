@@ -24,7 +24,7 @@ The LED chain runs left eye first (indices 0–6), then right eye (indices 7–1
 ## Behavior
 
 ### Normal mode (default)
-Eyes are lit white. Every 8–15 seconds the eyes look left, then right, then return to center.
+Eyes are lit white and the mouth rests open. Every 8–15 seconds the eyes look left, then right, then return to center.
 
 ### Glitch mode
 Every 2–3 seconds, one or both eyes briefly flicker on and off 2–4 times, then return to white. Simulates a malfunctioning animatronic.

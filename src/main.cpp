@@ -165,6 +165,7 @@ void enterNormal() {
     FastLED.setBrightness(BRIGHTNESS_NORMAL);
     eyeServo.write(SERVO_CENTER);
     setEyes(CRGB::White);
+    mouthServo.write(MOUTH_OPEN);   // mouth rests open by default
     lookingAround = false;
     scheduleNextGlitch();
     scheduleNextError();
@@ -190,8 +191,8 @@ void enterError() {
     errorStepMs   = millis();
     lookingAround = false;
     eyeServo.write(SERVO_CENTER);
-    mouthServo.write(MOUTH_CLOSED);
-    mouthOpen     = false;
+    mouthServo.write(MOUTH_OPEN);
+    mouthOpen     = true;
 }
 
 void enterReboot() {
@@ -301,8 +302,8 @@ void updateError() {
         case 2:
             if (now - errorStepMs >= ERROR_RED_MS) {
                 setEyes(CRGB::Black);
-                mouthServo.write(MOUTH_CLOSED);
-                mouthOpen   = false;
+                mouthServo.write(MOUTH_OPEN);   // back to the default open rest position
+                mouthOpen   = true;
                 errorStep   = 3;
                 errorStepMs = now;
                 break;
@@ -403,8 +404,7 @@ void setup() {
     FastLED.setBrightness(200);
 
     eyeServo.attach(SERVO_PIN);
-    mouthServo.attach(MOUTH_PIN);
-    mouthServo.write(MOUTH_CLOSED);
+    mouthServo.attach(MOUTH_PIN);   // enterNormal() below sets the resting position
 
     randomSeed(analogRead(0));
 
