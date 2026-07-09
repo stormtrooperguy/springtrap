@@ -46,7 +46,7 @@
 #define ERROR_CHASE_STEP_MS    60UL  // ms per red chase frame
 #define ERROR_CHASE_TAIL_LEN     3   // comet length in pixels, including the head
 
-#define ERROR_LOOK_HOLD_MS    250UL  // how long the eyes hold each side during the error sweep
+#define ERROR_LOOK_HOLD_MS    400UL  // how long the eyes hold each side during the error sweep
 
 #define MOUTH_OPEN_HOLD_MS     500UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
@@ -289,9 +289,9 @@ void updateGlitch() {
 void updateError() {
     unsigned long now = millis();
 
-    // Eyes sweep left/right continuously for the whole error sequence,
-    // independent of which sub-phase (blackout/red/fadeout) is active.
-    if (now - errorLookStepMs >= ERROR_LOOK_HOLD_MS) {
+    // Eyes sweep left/right continuously through blackout and the red
+    // chase, then hold center during the fadeout below (errorStep 3).
+    if (errorStep < 3 && now - errorLookStepMs >= ERROR_LOOK_HOLD_MS) {
         errorLookRight = !errorLookRight;
         eyeServo.write(errorLookRight ? SERVO_RIGHT : SERVO_LEFT);
         errorLookStepMs = now;
@@ -317,6 +317,7 @@ void updateError() {
         case 2:
             if (now - errorStepMs >= ERROR_RED_MS) {
                 setEyes(CRGB::Black);
+                eyeServo.write(SERVO_CENTER);   // recenter before reboot
                 mouthServo.write(MOUTH_OPEN);   // back to the default open rest position
                 mouthOpen   = true;
                 errorStep   = 3;
