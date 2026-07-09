@@ -46,6 +46,8 @@
 #define ERROR_CHASE_STEP_MS    60UL  // ms per red chase frame
 #define ERROR_CHASE_TAIL_LEN     3   // comet length in pixels, including the head
 
+#define ERROR_LOOK_HOLD_MS    250UL  // how long the eyes hold each side during the error sweep
+
 #define MOUTH_OPEN_HOLD_MS     500UL  // how long the mouth stays open before snapping shut — tune via tools/mouth_tune
 
 // How long the mouth stays closed before reopening. Must be at least the
@@ -116,6 +118,8 @@ bool mouthOpen        = false;   // chomp state: open-and-holding vs snapped shu
 unsigned long mouthPhaseUntilMs = 0;
 int  errorChasePos      = 0;
 unsigned long errorChaseStepMs = 0;
+bool errorLookRight     = false;   // continuous left/right sweep for the whole error sequence
+unsigned long errorLookStepMs = 0;
 
 // ---------------------------------------------------------------------------
 // Reboot sub-state
@@ -190,7 +194,9 @@ void enterError() {
     errorStep     = 0;
     errorStepMs   = millis();
     lookingAround = false;
-    eyeServo.write(SERVO_CENTER);
+    errorLookRight  = false;
+    errorLookStepMs = millis();
+    eyeServo.write(SERVO_LEFT);
     mouthServo.write(MOUTH_OPEN);
     mouthOpen     = true;
 }
@@ -282,6 +288,15 @@ void updateGlitch() {
 // ---------------------------------------------------------------------------
 void updateError() {
     unsigned long now = millis();
+
+    // Eyes sweep left/right continuously for the whole error sequence,
+    // independent of which sub-phase (blackout/red/fadeout) is active.
+    if (now - errorLookStepMs >= ERROR_LOOK_HOLD_MS) {
+        errorLookRight = !errorLookRight;
+        eyeServo.write(errorLookRight ? SERVO_RIGHT : SERVO_LEFT);
+        errorLookStepMs = now;
+    }
+
     switch (errorStep) {
         case 0:
             setEyes(CRGB::Black);
