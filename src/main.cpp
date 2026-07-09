@@ -358,22 +358,19 @@ void updateEyeMovement() {
     }
 }
 
-// Best-effort: fire cupcake's bite action at its known static IP. Silently
-// does nothing if cupcake doesn't respond -- springtrap's own routine
-// proceeds regardless either way. Bounded to well under a second so it's
-// not noticeable inside the blackout that follows.
-void triggerCupcakeBite() {
+// Best-effort: fire one of cupcake's /a/<path> actions at its known static
+// IP. Silently does nothing if cupcake doesn't respond -- springtrap's own
+// routine proceeds regardless either way. Bounded to well under a second so
+// a sequence of a couple of these isn't noticeable inside the routine.
+void sendCupcakeAction(const char* path) {
     HTTPClient http;
-    String url = "http://" + CUPCAKE_IP.toString() + "/a/bite";
+    String url = "http://" + CUPCAKE_IP.toString() + "/a/" + path;
     http.setConnectTimeout(CUPCAKE_HTTP_TIMEOUT_MS);
     http.setTimeout(CUPCAKE_HTTP_TIMEOUT_MS);
     http.begin(url);
     int code = http.GET();
     http.end();
-    Serial.print("Triggered cupcake bite (");
-    Serial.print(url);
-    Serial.print("): HTTP ");
-    Serial.println(code);
+    Serial.printf("Cupcake /a/%s -> HTTP %d\n", path, code);
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +387,9 @@ void enterErrorPhase() {
     eyeServo.write(SERVO_LEFT);
     mouthServo.write(MOUTH_OPEN);
     mouthOpen     = true;
-    triggerCupcakeBite();
+    // Bring cupcake along: eyes red, then chomp, in sync with the error.
+    sendCupcakeAction("eye_red");
+    sendCupcakeAction("bite");
 }
 
 void enterRebootPhase() {
@@ -402,6 +401,8 @@ void enterRebootPhase() {
 }
 
 void finishErrorReboot() {
+    // Recovery complete -- return cupcake's eyes to their normal yellow.
+    sendCupcakeAction("eye_yellow");
     enterEyeMovement();
     if (autoLoopEnabled) scheduleNextAutoError();
     pushStatus();
