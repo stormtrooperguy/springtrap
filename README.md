@@ -52,7 +52,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define SERVO_CENTER   110
 #define SERVO_RIGHT    145
 
-#define MOUTH_CLOSED     45
+#define MOUTH_CLOSED     60
 #define MOUTH_OPEN        0
 ```
 
@@ -73,7 +73,7 @@ All tunable values are `#define` constants at the top of [`src/main.cpp`](src/ma
 #define ERROR_CHASE_STEP_MS   60UL   // ms per red chase frame during error
 #define ERROR_CHASE_TAIL_LEN    3    // comet length in pixels, including the head
 #define MOUTH_OPEN_HOLD_MS   500UL   // how long the mouth stays open before snapping shut
-#define MOUTH_CLOSE_HOLD_MS  300UL   // how long it stays closed before reopening
+#define MOUTH_CLOSE_HOLD_MS  500UL   // how long it stays closed before reopening
 ```
 
 ## Building and Flashing

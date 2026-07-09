@@ -18,7 +18,7 @@
 #define SERVO_CENTER   110
 #define SERVO_RIGHT    145
 
-#define MOUTH_CLOSED     45
+#define MOUTH_CLOSED     60
 #define MOUTH_OPEN        0
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@
 // servo's actual travel time for the full open<->closed span (typically
 // ~1.5-3ms per degree for a hobby servo) — too short and it gets recalled
 // to open mid-swing before ever reaching closed. Tune via tools/mouth_tune.
-#define MOUTH_CLOSE_HOLD_MS    300UL
+#define MOUTH_CLOSE_HOLD_MS    500UL
 
 #define REBOOT_BLACKOUT_MS    800UL  // off duration before chase
 #define REBOOT_CHASE_STEP_MS   60UL  // ms per chase frame
