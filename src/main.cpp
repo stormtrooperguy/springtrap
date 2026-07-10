@@ -387,9 +387,10 @@ void enterErrorPhase() {
     eyeServo.write(SERVO_LEFT);
     mouthServo.write(MOUTH_OPEN);
     mouthOpen     = true;
-    // Bring cupcake along: eyes red, then chomp, in sync with the error.
+    // Bring cupcake along: eyes red, then chomp repeatedly for the whole
+    // error phase (bite_multi), matching springtrap's ~8s jaw flapping.
     sendCupcakeAction("eye_red");
-    sendCupcakeAction("bite");
+    sendCupcakeAction("bite_multi");
 }
 
 void enterRebootPhase() {

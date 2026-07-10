@@ -55,7 +55,7 @@ Running the eye sweep, mouth chomp, and full-brightness LED chase simultaneously
 ### Cross-device coordination
 Springtrap drives cupcake in sync with its error/reboot routine, hitting cupcake directly at its known static IP (`192.168.4.2`, whether cupcake is on `fazbear_sec` or its own AP):
 
-- **When the routine starts** (during the initial blackout): `GET /a/eye_red` then `GET /a/bite` — cupcake's eyes go red and it chomps alongside springtrap.
+- **When the routine starts** (during the initial blackout): `GET /a/eye_red` then `GET /a/bite_multi` — cupcake's eyes go red and it chomps repeatedly for ~8 seconds, matching springtrap's jaw flapping, rather than a single snap.
 - **When the reboot completes**: `GET /a/eye_yellow` — cupcake's eyes return to their normal yellow as springtrap recovers.
 
 All of these are best-effort: if cupcake isn't connected to `fazbear_sec` or doesn't respond within ~500ms each, springtrap logs it to serial and proceeds with its own routine regardless — nothing here can block or fail the local sequence.
