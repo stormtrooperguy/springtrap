@@ -53,12 +53,11 @@ Triggered either automatically (Auto Loop on, every 3–5 minutes) or manually f
 Running the eye sweep, mouth chomp, and full-brightness LED chase simultaneously draws enough current to brown out an underpowered supply — this was confirmed on a marginal setup and fixed by upgrading to a well-regulated 5V/6A supply. If the sequence starts cutting short, suspect power first.
 
 ### Cross-device coordination
-Springtrap drives cupcake in sync with its error/reboot routine, hitting cupcake directly at its known static IP (`192.168.4.2`, whether cupcake is on `fazbear_sec` or its own AP):
+When its error/reboot routine starts (during the initial blackout), springtrap fires a **single** call to cupcake at its known static IP (`192.168.4.2`, whether cupcake is on `fazbear_sec` or its own AP): `GET /a/bite_multi`. Cupcake then turns its eyes red, chomps repeatedly for ~8 seconds to match springtrap's jaw flapping, and restores its previous eye color on its own when done — so springtrap sends nothing else, not even a recovery command.
 
-- **When the routine starts** (during the initial blackout): `GET /a/eye_red` then `GET /a/bite_multi` — cupcake's eyes go red and it chomps repeatedly for ~8 seconds, matching springtrap's jaw flapping, rather than a single snap.
-- **When the reboot completes**: `GET /a/eye_yellow` — cupcake's eyes return to their normal yellow as springtrap recovers.
+This is a single call by design: cupcake owns the eye-color changes so springtrap doesn't have to send `eye_red`/`eye_yellow` around the bite. Firing two HTTP requests back-to-back was intermittently dropping the second one, so consolidating to one call is both simpler and more reliable.
 
-All of these are best-effort: if cupcake isn't connected to `fazbear_sec` or doesn't respond within ~500ms each, springtrap logs it to serial and proceeds with its own routine regardless — nothing here can block or fail the local sequence.
+It's best-effort: if cupcake isn't connected to `fazbear_sec` or doesn't respond within ~500ms, springtrap logs it to serial and proceeds with its own routine regardless — nothing here can block or fail the local sequence.
 
 ## Configuration
 

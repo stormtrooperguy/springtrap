@@ -387,9 +387,10 @@ void enterErrorPhase() {
     eyeServo.write(SERVO_LEFT);
     mouthServo.write(MOUTH_OPEN);
     mouthOpen     = true;
-    // Bring cupcake along: eyes red, then chomp repeatedly for the whole
-    // error phase (bite_multi), matching springtrap's ~8s jaw flapping.
-    sendCupcakeAction("eye_red");
+    // Bring cupcake along with a single call: bite_multi handles its own eyes
+    // (red for the duration, restored afterward), so springtrap doesn't send
+    // separate eye-color commands. One call also sidesteps the intermittent
+    // failure we hit when firing two HTTP requests back-to-back.
     sendCupcakeAction("bite_multi");
 }
 
@@ -402,8 +403,8 @@ void enterRebootPhase() {
 }
 
 void finishErrorReboot() {
-    // Recovery complete -- return cupcake's eyes to their normal yellow.
-    sendCupcakeAction("eye_yellow");
+    // No cupcake call here: bite_multi restores cupcake's eye color on its own
+    // when its window ends, so springtrap doesn't manage that anymore.
     enterEyeMovement();
     if (autoLoopEnabled) scheduleNextAutoError();
     pushStatus();
